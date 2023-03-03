@@ -1,0 +1,102 @@
+// Copyright 2016-2023, Pulumi Corporation.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package pulumirpc.codegen;
+
+option go_package = "github.com/pulumi/pulumi/sdk/v3/proto/go/codegen";
+
+// Core is a description of the core interfaces a Pulumi SDK needs to expose. Language SDKs can get hold of
+// the most recent version of this by invoking `pulumi core` which will write out a protobuf of this message
+// type to stdout.
+message Core {
+    SDK sdk = 1;
+}
+
+enum PrimitiveType {
+    TYPE_UNIT = 0;
+    TYPE_BOOL = 1;
+    TYPE_BYTE = 2;
+    TYPE_INT = 3;
+    TYPE_STRING = 4;
+    TYPE_PROPERTY_VALUE = 5;
+    TYPE_DURATION = 6;
+}
+
+// Type is the type of a record field or interface method parameter
+message TypeReference {
+    oneof element {
+        PrimitiveType primitive = 1;
+        TypeReference array = 2;
+        TypeReference map = 3;
+        string ref = 4;
+    }
+}
+
+message EnumerationValue {
+    string name = 1;
+    string description = 2;
+    int32 value = 3;
+}
+
+message Enumeration {
+    string name = 1;
+    string description = 2;
+    repeated EnumerationValue values = 3;
+}
+
+message TypeDeclaration {
+    oneof element {
+        Record record = 1;
+        Interface interface = 2;
+        Enumeration enumeration = 3;
+    }
+}
+
+message Property {
+    string name = 1;
+    string description = 2;
+    TypeReference type = 3;
+}
+
+message Record {
+    string name = 1;
+    string description = 2;
+    repeated Property properties = 3;
+}
+
+message Parameter {
+    string name = 1;
+    string description = 2;
+    TypeReference type = 3;
+}
+
+message Method {
+    string name = 1;
+    string description = 2;
+    TypeReference return_type = 3;
+    repeated Parameter parameters = 4;
+}
+
+message Interface {
+    string name = 1;
+    string description = 2;
+    repeated Method methods = 3;
+}
+
+// SDK is a collection of interfaces that the core SDK should contain.
+message SDK {
+    repeated TypeDeclaration type_declarations = 1;
+}

@@ -1,0 +1,732 @@
+{
+  "sdk": {
+    "typeDeclarations": [
+      {
+        "enumeration": {
+          "name": "pulumi.experimental.providers.log_severity",
+          "description": "The severity level of a log message. Errors are fatal; all others are informational.",
+          "values": [
+            {
+              "name": "debug",
+              "description": "A debug-level message not displayed to end-users (the default)."
+            },
+            {
+              "name": "info",
+              "description": "An informational message printed to output during resource operations.",
+              "value": 1
+            },
+            {
+              "name": "warning",
+              "description": "A warning to indicate that something went wrong.",
+              "value": 2
+            },
+            {
+              "name": "error",
+              "description": "A fatal error indicating that the tool should stop processing subsequent resource operations.",
+              "value": 3
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.log_message",
+          "description": "A log message to be sent to the Pulumi engine.",
+          "properties": [
+            {
+              "name": "severity",
+              "description": "The logging level of this message.",
+              "type": {
+                "ref": "pulumi.experimental.providers.log_severity"
+              }
+            },
+            {
+              "name": "message",
+              "description": "The contents of the logged message.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "URN",
+              "description": "The (optional) resource urn this log is associated with.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "stream_id",
+              "description": "The (optional) stream id that a stream of log messages can be associated with. This allows clients to not have to buffer a large set of log messages that they all want to be conceptually connected.  Instead the messages can be sent as chunks (with the same stream id) and the end display can show the messages as they arrive, while still stitching them together into one total log message. 0 means do not associate with any stream.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "ephemeral",
+              "description": "Optional value indicating whether this is a status message.",
+              "type": {
+                "primitive": "TYPE_BOOL"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "interface": {
+          "name": "pulumi.experimental.providers.host",
+          "description": "An interface to the engine host running this plugin.",
+          "methods": [
+            {
+              "name": "log",
+              "description": "Send a log message to the host.",
+              "returnType": {
+                "primitive": "TYPE_UNIT"
+              },
+              "parameters": [
+                {
+                  "name": "message",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.log_message"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.check_request",
+          "description": "A request to validate the inputs for a resource.",
+          "properties": [
+            {
+              "name": "URN",
+              "description": "The Pulumi URN for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "type",
+              "description": "The Pulumi type for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "name",
+              "description": "The Pulumi name for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "olds",
+              "description": "The old Pulumi inputs for this resource, if any.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "news",
+              "description": "The new Pulumi inputs for this resource.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "random_seed",
+              "description": "A deterministically random hash, primarily intended for global unique naming.",
+              "type": {
+                "array": {
+                  "primitive": "TYPE_BYTE"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.check_failure",
+          "description": "Indicates that a call to check failed; it contains the property and reason for the failure.",
+          "properties": [
+            {
+              "name": "property",
+              "description": "The property that failed validation.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "The reason that the property failed validation.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.check_response",
+          "description": "The response from checking a resource.",
+          "properties": [
+            {
+              "name": "inputs",
+              "description": "The provider inputs for this resource.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "failures",
+              "description": "Any validation failures that occurred.",
+              "type": {
+                "array": {
+                  "ref": "pulumi.experimental.providers.check_failure"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.diff_request",
+          "description": "A request to diff the inputs for a resource.",
+          "properties": [
+            {
+              "name": "id",
+              "description": "The ID of the resource to diff.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "URN",
+              "description": "The Pulumi URN for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "type",
+              "description": "The Pulumi type for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "name",
+              "description": "The Pulumi name for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "olds",
+              "description": "The old values of provider inputs to diff.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "news",
+              "description": "The new values of provider inputs to diff.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "ignore_changes",
+              "description": "A set of property paths that should be treated as unchanged.",
+              "type": {
+                "array": {
+                  "primitive": "TYPE_STRING"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.diff_response",
+          "description": "The response from diffing a resource.",
+          "properties": [
+            {
+              "name": "id",
+              "description": "The ID of the resource to diff.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.configure_request",
+          "description": "A request to configure a provider."
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.configure_response"
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.create_request",
+          "description": "A request to create a resource.",
+          "properties": [
+            {
+              "name": "URN",
+              "description": "The Pulumi URN for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "type",
+              "description": "The Pulumi type for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "name",
+              "description": "The Pulumi name for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "properties",
+              "description": "The provider inputs to set during creation.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "timeout",
+              "description": "The create request timeout.",
+              "type": {
+                "primitive": "TYPE_DURATION"
+              }
+            },
+            {
+              "name": "preview",
+              "description": "true if this is a preview and the provider should not actually create the resource.",
+              "type": {
+                "primitive": "TYPE_BOOL"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.create_response",
+          "description": "The response from creating a resource.",
+          "properties": [
+            {
+              "name": "id",
+              "description": "The ID of the created resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "properties",
+              "description": "Any any properties that were computed during creation.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.read_request",
+          "description": "A request to read a resource.",
+          "properties": [
+            {
+              "name": "id",
+              "description": "The ID of the resource to read.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "URN",
+              "description": "The Pulumi URN for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "type",
+              "description": "The Pulumi type for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "name",
+              "description": "The Pulumi name for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "properties",
+              "description": "The current state (sufficiently complete to identify the resource).",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "inputs",
+              "description": "The current inputs, if any (only populated during refresh).",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.read_response",
+          "description": "The response from reading a resource.",
+          "properties": [
+            {
+              "name": "id",
+              "description": "The ID of the resource read back (or empty if missing).",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "properties",
+              "description": "The state of the resource read from the live environment.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "inputs",
+              "description": "The inputs for this resource that would be returned from Check.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.update_request",
+          "description": "A request to update a resource.",
+          "properties": [
+            {
+              "name": "id",
+              "description": "The ID of the resource to update.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "URN",
+              "description": "The Pulumi URN for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "type",
+              "description": "The Pulumi type for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "name",
+              "description": "The Pulumi name for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "old",
+              "description": "The old values of provider inputs for the resource to update.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "new",
+              "description": "The new values of provider inputs for the resource to update.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            },
+            {
+              "name": "timeout",
+              "description": "The create request timeout.",
+              "type": {
+                "primitive": "TYPE_DURATION"
+              }
+            },
+            {
+              "name": "ignore_changes",
+              "description": "A set of property paths that should be treated as unchanged.",
+              "type": {
+                "array": {
+                  "primitive": "TYPE_STRING"
+                }
+              }
+            },
+            {
+              "name": "preview",
+              "description": "true if this is a preview and the provider should not actually update the resource.",
+              "type": {
+                "primitive": "TYPE_BOOL"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.update_response",
+          "properties": [
+            {
+              "name": "properties",
+              "description": "Any properties that were computed during updating.",
+              "type": {
+                "map": {
+                  "primitive": "TYPE_PROPERTY_VALUE"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.delete_request",
+          "description": "A request to delete a resource.",
+          "properties": [
+            {
+              "name": "id",
+              "description": "The ID of the resource to delete.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "URN",
+              "description": "The Pulumi URN for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "type",
+              "description": "The Pulumi type for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            },
+            {
+              "name": "name",
+              "description": "The Pulumi name for this resource.",
+              "type": {
+                "primitive": "TYPE_STRING"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "record": {
+          "name": "pulumi.experimental.providers.delete_response"
+        }
+      },
+      {
+        "interface": {
+          "name": "pulumi.experimental.providers.provider",
+          "description": "Provider presents a simple interface for orchestrating resource create, read, update, and delete operations. Each provider understands how to handle all of the resource types within a single package.\n\nIt is important to note that provider operations are not transactional (Some providers might decide to offer transactional semantics, but such a provider is a rare treat). As a result, failures in the operations below can range from benign to catastrophic (possibly leaving behind a corrupt resource). It is up to the provider to make a best effort to ensure catastrophes do not occur. The errors returned from mutating operations indicate both the underlying error condition in addition to a bit indicating whether the operation was successfully rolled back.",
+          "methods": [
+            {
+              "name": "check_config",
+              "description": "Validates the configuration for this resource provider.",
+              "returnType": {
+                "ref": "pulumi.experimental.providers.check_response"
+              },
+              "parameters": [
+                {
+                  "name": "request",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.check_request"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "diff_config",
+              "description": "Checks what impacts a hypothetical change to this provider's configuration will have on the provider.",
+              "returnType": {
+                "ref": "pulumi.experimental.providers.diff_response"
+              },
+              "parameters": [
+                {
+                  "name": "request",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.diff_request"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "configure",
+              "description": "Configures the resource provider with \"globals\" that control its behavior.",
+              "returnType": {
+                "ref": "pulumi.experimental.providers.configure_response"
+              },
+              "parameters": [
+                {
+                  "name": "request",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.configure_request"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "check",
+              "description": "Validates that the given property bag is valid for a resource of the given type and returns the inputs that should be passed to successive calls to Diff, Create, or Update for this resource. As a rule, the provider inputs returned by a call to Check should preserve the original representation of the properties as present in the program inputs. Though this rule is not required for correctness, violations thereof can negatively impact the end-user experience, as the provider inputs are using for detecting and rendering diffs.",
+              "returnType": {
+                "ref": "pulumi.experimental.providers.check_response"
+              },
+              "parameters": [
+                {
+                  "name": "request",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.check_request"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "diff",
+              "description": "Checks what impacts a hypothetical update will have on the resource's properties.",
+              "returnType": {
+                "ref": "pulumi.experimental.providers.diff_response"
+              },
+              "parameters": [
+                {
+                  "name": "request",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.diff_request"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "create",
+              "description": "Allocates a new instance of the provided resource and returns its unique ID afterwards. (The input ID must be blank.)  If this call fails, the resource must not have been created (i.e., it is \"transactional\").",
+              "returnType": {
+                "ref": "pulumi.experimental.providers.create_response"
+              },
+              "parameters": [
+                {
+                  "name": "request",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.create_request"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "update",
+              "description": "Updates an existing resource with new values.",
+              "returnType": {
+                "ref": "pulumi.experimental.providers.update_response"
+              },
+              "parameters": [
+                {
+                  "name": "request",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.update_request"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "delete",
+              "description": "Tears down an existing resource with the given ID. If it fails, the resource is assumed to still exist.",
+              "returnType": {
+                "ref": "pulumi.experimental.providers.delete_response"
+              },
+              "parameters": [
+                {
+                  "name": "request",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.delete_request"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "read",
+              "description": "Reads the current live state associated with a resource. Enough state must be include in the inputs to uniquely identify the resource; this is typically just the resource ID, but may also include some properties.",
+              "returnType": {
+                "ref": "pulumi.experimental.providers.read_response"
+              },
+              "parameters": [
+                {
+                  "name": "request",
+                  "type": {
+                    "ref": "pulumi.experimental.providers.read_request"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
