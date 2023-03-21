@@ -1116,6 +1116,11 @@ async def _add_dependency(
     from .. import ComponentResource  # pylint: disable=import-outside-toplevel
 
     if isinstance(res, ComponentResource) and not res._remote:
+        # If `res` is the same as `from_resource`, exit early to avoid depending on
+        # children that haven't been registered yet.
+        if res is from_resource:
+            return
+
         # Copy the set before iterating so that any concurrent child additions during
         # the dependency computation (which is async, so can be interleaved with other
         # operations including child resource construction which adds children to this
