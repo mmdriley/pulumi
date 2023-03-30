@@ -18,7 +18,6 @@ import (
 	cryptorand "crypto/rand"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/pulumi/pulumi/pkg/v3/resource/deploy/providers"
 	"github.com/pulumi/pulumi/pkg/v3/resource/graph"
@@ -54,6 +53,9 @@ type stepGenerator struct {
 	updates  map[resource.URN]bool // set of URNs updated in this deployment
 	creates  map[resource.URN]bool // set of URNs created in this deployment
 	sames    map[resource.URN]bool // set of URNs that were not changed in this deployment
+
+	// track the resource goals. This is used to set default resource options inherited from the resource's parent.
+	resourceGoals map[resource.URN]*resource.Goal
 
 	// set of URNs that would have been created, but were filtered out because the user didn't
 	// specify them with --target
@@ -213,8 +215,6 @@ func (sg *stepGenerator) GenerateReadSteps(event ReadResourceEvent) ([]Step, res
 		"",    /* importID */
 		false, /* retainOnDelete */
 		"",    /* deletedWith */
-		nil,   /* created */
-		nil,   /* modified */
 	)
 	old, hasOld := sg.deployment.Olds()[urn]
 
@@ -424,22 +424,51 @@ func (sg *stepGenerator) inheritedChildAlias(
 		aliasName)
 }
 
+// configureGoal mutates the passed goal to inherit the correct ResourceOptions from its parent.
+func (sg *stepGenerator) configureGoal(goal *resource.Goal) result.Result {
+	originalParent := goal.Parent
+
+	// Some goal settings are based on the parent settings so make sure our parent is correct.
+	p, res := sg.checkParent(goal.Parent, goal.Type)
+	if res != nil {
+		return res
+	}
+
+	if p != "" {
+		parentGoal, ok := sg.resourceGoals[p]
+		if !ok {
+			return result.Errorf("could not find parent goal %v (originally %v)", p, originalParent)
+		}
+
+		// Make resource goal inherit parent's default resource options if left unset.
+		if goal.DeletedWith == "" {
+			goal.DeletedWith = parentGoal.DeletedWith
+		}
+	}
+
+	goal.Parent = p
+	return nil
+}
+
 func (sg *stepGenerator) generateSteps(event RegisterResourceEvent) ([]Step, result.Result) {
 	var invalid bool // will be set to true if this object fails validation.
 
 	goal := event.Goal()
 
-	// Some goal settings are based on the parent settings so make sure our parent is correct.
-	parent, res := sg.checkParent(goal.Parent, goal.Type)
+	// Configure Goal's parent and inherited ResourceOptions.
+	res := sg.configureGoal(goal)
 	if res != nil {
 		return nil, res
 	}
-	goal.Parent = parent
 
 	urn, res := sg.generateURN(goal.Parent, goal.Type, goal.Name)
 	if res != nil {
 		return nil, res
 	}
+
+	// Store the resource's goal. This is used to determine the parent's resource options to inherit
+	// by child resources.
+	sg.resourceGoals[urn] = goal
 
 	// Generate the aliases for this resource
 	aliases := make(map[resource.URN]struct{}, 0)
@@ -475,15 +504,12 @@ func (sg *stepGenerator) generateSteps(event RegisterResourceEvent) ([]Step, res
 	var old *resource.State
 	var hasOld bool
 	var alias []resource.Alias
-	var createdAt, modifiedAt *time.Time
 	aliases[urn] = struct{}{}
 	for urnOrAlias := range aliases {
 		old, hasOld = sg.deployment.Olds()[urnOrAlias]
 		if hasOld {
 			oldInputs = old.Inputs
 			oldOutputs = old.Outputs
-			createdAt = old.Created
-			modifiedAt = old.Modified
 			if urnOrAlias != urn {
 				if _, alreadySeen := sg.urns[urnOrAlias]; alreadySeen {
 					// This resource is claiming to X but we've already seen that urn created
@@ -531,8 +557,7 @@ func (sg *stepGenerator) generateSteps(event RegisterResourceEvent) ([]Step, res
 	// get serialized into the checkpoint file.
 	new := resource.NewState(goal.Type, urn, goal.Custom, false, "", inputs, nil, goal.Parent, goal.Protect, false,
 		goal.Dependencies, goal.InitErrors, goal.Provider, goal.PropertyDependencies, false,
-		goal.AdditionalSecretOutputs, aliasUrns, &goal.CustomTimeouts, "", goal.RetainOnDelete, goal.DeletedWith,
-		createdAt, modifiedAt)
+		goal.AdditionalSecretOutputs, aliasUrns, &goal.CustomTimeouts, "", goal.RetainOnDelete, goal.DeletedWith)
 
 	// Mark the URN/resource as having been seen. So we can run analyzers on all resources seen, as well as
 	// lookup providers for calculating replacement of resources that use the provider.
@@ -1392,14 +1417,7 @@ func (sg *stepGenerator) providerChanged(urn resource.URN, old, new *resource.St
 	}
 
 	logging.V(stepExecutorLogLevel).Infof("sg.diffProvider(%s, ...): observed provider diff", urn)
-	logging.V(stepExecutorLogLevel).Infof("sg.diffProvider(%s, ...): %v => %v", urn, old.Provider, new.Provider)
-
-	// If we're changing from a component resource to a non-component resource, there is no old provider to
-	// diff against and trigger a delete but we need to Create the new custom resource. If we're changing from
-	// a custom resource to a component resource, we should always trigger a replace.
-	if old.Provider == "" || new.Provider == "" {
-		return true, nil
-	}
+	logging.V(stepExecutorLogLevel).Infof("sg.diffProvider(%s, ...): %s => %s", urn, old.Provider, new.Provider)
 
 	oldRef, err := providers.ParseReference(old.Provider)
 	if err != nil {
@@ -1935,6 +1953,7 @@ func newStepGenerator(
 		replaces:             make(map[resource.URN]bool),
 		updates:              make(map[resource.URN]bool),
 		deletes:              make(map[resource.URN]bool),
+		resourceGoals:        make(map[resource.URN]*resource.Goal),
 		skippedCreates:       make(map[resource.URN]bool),
 		pendingDeletes:       make(map[*resource.State]bool),
 		providers:            make(map[resource.URN]*resource.State),
