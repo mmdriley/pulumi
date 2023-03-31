@@ -103,6 +103,18 @@ func newPluginInstallCmd() *cobra.Command {
 					Checksums:         checksums,
 				}
 
+				// bundled plugins are not installable with this command.
+				// They are expected to be distributed with Pulumi itself.
+				if workspace.IsBundledPlugin(pluginSpec.Kind, pluginSpec.Name) {
+					return fmt.Errorf(
+						"the %v %v plugin is bundled with Pulumi, and cannot be directly installed"+
+							" with this command. If you need to reinstall this plugin, uninstall"+
+							" Pulumi via your package manager and re-install.",
+						pluginSpec.Name,
+						pluginSpec.Kind,
+					)
+				}
+
 				// If we don't have a version try to look one up
 				if version == nil {
 					latestVersion, err := pluginSpec.GetLatestVersion()

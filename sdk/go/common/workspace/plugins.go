@@ -1513,6 +1513,20 @@ func IsPluginKind(k string) bool {
 	}
 }
 
+// IsPreinstalledLanguagePlugin returns true if the spec describes
+// a language plugin that comes preinstalled with the CLI.
+// These are our standard four language plugins: C#, Go, NodeJS, and Python.
+func IsBundledPlugin(kind PluginKind, name string) bool {
+	// We currently bundle some plugins with "pulumi" and thus expect them to be next to the pulumi binary. We
+	// also always allow these plugins to be picked up from PATH even if PULUMI_IGNORE_AMBIENT_PLUGINS is set.
+	// Eventually we want to fix this so new plugins are true plugins in the plugin cache.
+	return kind == LanguagePlugin ||
+		(kind == ResourcePlugin && name == "pulumi-nodejs") ||
+		(kind == ResourcePlugin && name == "pulumi-python") ||
+		(kind == AnalyzerPlugin && name == "policy") ||
+		(kind == AnalyzerPlugin && name == "policy-python")
+}
+
 // HasPlugin returns true if the given plugin exists.
 func HasPlugin(spec PluginSpec) bool {
 	dir, err := spec.DirPath()
@@ -1764,14 +1778,7 @@ func getPluginInfoAndPath(
 		return info, path, nil
 	}
 
-	// We currently bundle some plugins with "pulumi" and thus expect them to be next to the pulumi binary. We
-	// also always allow these plugins to be picked up from PATH even if PULUMI_IGNORE_AMBIENT_PLUGINS is set.
-	// Eventually we want to fix this so new plugins are true plugins in the plugin cache.
-	isBundled := kind == LanguagePlugin ||
-		(kind == ResourcePlugin && name == "pulumi-nodejs") ||
-		(kind == ResourcePlugin && name == "pulumi-python") ||
-		(kind == AnalyzerPlugin && name == "policy") ||
-		(kind == AnalyzerPlugin && name == "policy-python")
+	isBundled := IsBundledPlugin(kind, name)
 
 	// If we have a version of the plugin on its $PATH, use it, unless we have opted out of this behavior explicitly.
 	// This supports development scenarios.
