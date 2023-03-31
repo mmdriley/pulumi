@@ -83,7 +83,7 @@ func newUpCmd() *cobra.Command {
 	var planFilePath string
 
 	// up implementation used when the source of the Pulumi program is in the current working directory.
-	upWorkingDirectory := func(ctx context.Context, opts backend.UpdateOptions) result.Result {
+	upWorkingDirectory := func(ctx context.Context, opts backend.UpdateOptions, cmd *cobra.Command) result.Result {
 		s, err := requireStack(ctx, stackName, stackOfferNew, opts.Display)
 		if err != nil {
 			return result.FromError(err)
@@ -99,7 +99,7 @@ func newUpCmd() *cobra.Command {
 			return result.FromError(err)
 		}
 
-		m, err := getUpdateMetadata(message, root, execKind, execAgent, planFilePath != "")
+		m, err := getUpdateMetadata(message, root, execKind, execAgent, planFilePath != "", cmd)
 		if err != nil {
 			return result.FromError(fmt.Errorf("gathering environment metadata: %w", err))
 		}
@@ -197,7 +197,7 @@ func newUpCmd() *cobra.Command {
 
 	// up implementation used when the source of the Pulumi program is a template name or a URL to a template.
 	upTemplateNameOrURL := func(ctx context.Context,
-		templateNameOrURL string, opts backend.UpdateOptions,
+		templateNameOrURL string, opts backend.UpdateOptions, cmd *cobra.Command,
 	) result.Result {
 		// Retrieve the template repo.
 		repo, err := workspace.RetrieveTemplates(templateNameOrURL, false, workspace.TemplateKindPulumiProject)
@@ -326,7 +326,7 @@ func newUpCmd() *cobra.Command {
 			return result.FromError(err)
 		}
 
-		m, err := getUpdateMetadata(message, root, execKind, execAgent, planFilePath != "")
+		m, err := getUpdateMetadata(message, root, execKind, execAgent, planFilePath != "", cmd)
 		if err != nil {
 			return result.FromError(fmt.Errorf("gathering environment metadata: %w", err))
 		}
@@ -493,10 +493,10 @@ func newUpCmd() *cobra.Command {
 			}
 
 			if len(args) > 0 {
-				return upTemplateNameOrURL(ctx, args[0], opts)
+				return upTemplateNameOrURL(ctx, args[0], opts, cmd)
 			}
 
-			return upWorkingDirectory(ctx, opts)
+			return upWorkingDirectory(ctx, opts, cmd)
 		}),
 	}
 

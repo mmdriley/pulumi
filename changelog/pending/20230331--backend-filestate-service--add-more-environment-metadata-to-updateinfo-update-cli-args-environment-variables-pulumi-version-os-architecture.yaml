@@ -1,0 +1,4 @@
+changes:
+- type: feat
+  scope: backend/filestate,service
+  description: Add more environment metadata to UpdateInfo (Update CLI Args, Environment Variables, Pulumi Version, OS, Architecture).

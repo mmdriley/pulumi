@@ -18,6 +18,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pulumi/pulumi/pkg/v3/backend"
@@ -353,5 +354,86 @@ func TestStackLoadOption(t *testing.T) {
 				tt.setCurrent, tt.give.SetCurrent(),
 				"SetCurrent did not match")
 		})
+	}
+}
+
+// TestGetUpdateMetadata tests that the update metadata is correctly populated
+// when running a Pulumi program.
+func TestPulumiCLIMetadata(t *testing.T) {
+	t.Parallel()
+
+	var stringFlag string
+	var intFlag int
+	var boolFlag bool
+
+	cmd := &cobra.Command{
+		Use: "my-cli-command",
+	}
+
+	cmd.PersistentFlags().StringVar(
+		&stringFlag, "name", "",
+		"This is a mock string flag that is set on the command.")
+
+	cmd.PersistentFlags().IntVar(
+		&intFlag, "age", 0,
+		"This is a mock int flag that is set on the command.")
+
+	cmd.PersistentFlags().BoolVar(
+		&boolFlag, "human", false,
+		"This is a mock boolean flag that is set on the command.")
+
+	actualEnv := map[string]string{}
+
+	getEnv := func() []string { // This is the function that returns the environment variables.
+		return []string{
+			// Checks that a normal flag is set in the environment.
+			"PULUMI_SKIP_UPDATE_CHECK=1",
+			// Checks that an old and forgotten CLI flag is detected.
+			"PULUMI_DEPRECATED_FLAG=1.2.3",
+		}
+	}
+
+	subCmd := &cobra.Command{
+		Use: "subcommand",
+		Run: func(cmd *cobra.Command, args []string) {
+			addPulumiCLIMetadataToEnvironment(actualEnv, cmd, getEnv)
+		},
+	}
+
+	cmd.AddCommand(subCmd)
+	cmd.SetArgs([]string{"subcommand", "--name", "pulumipus", "--age", "100", "--human"})
+
+	err := cmd.Execute()
+	assert.NoError(t, err, "Expected command to execute successfully")
+
+	// Check that normal flags are set in the environment.
+	for _, flagName := range []string{
+		"pulumi.version",
+		"pulumi.arch",
+		"pulumi.os",
+	} {
+		if flagName == "pulumi.version" {
+			// Skip the version check for now, since it's global and set by the compiler.
+			continue
+		}
+		value, shouldExist := actualEnv[flagName]
+		assert.True(t, shouldExist, "Expected to find %s in update environment map", flagName)
+		assert.NotEmpty(t, value, "Expected %s to be set in update environment map", flagName)
+	}
+
+	// Check that sensitive flags are not leaked in the environment.
+	for _, flagName := range []string{
+		// Command line flags
+		"pulumi.flag.name",
+		"pulumi.flag.age",
+		"pulumi.flag.human",
+
+		// Environment variables
+		"pulumi.env.PULUMI_SKIP_UPDATE_CHECK",
+		"pulumi.env.PULUMI_DEPRECATED_FLAG",
+	} {
+		shouldBeSet, shouldExist := actualEnv[flagName]
+		assert.True(t, shouldExist, "Expected to find %s in update environment map", flagName)
+		assert.Equal(t, "set", shouldBeSet, "Expected %s to be set to 'set' in update environment map", flagName)
 	}
 }
