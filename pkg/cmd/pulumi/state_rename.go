@@ -41,6 +41,42 @@ func updateDependencies(dependencies []resource.URN, oldUrn resource.URN, newUrn
 	return updatedDependencies
 }
 
+// stateRenameOperation renames a resource (or provider) and mutates/rewrites references to it in the snapshot.
+func stateRenameOperation(urn resource.URN, newResourceName string, opts display.Options, snap *deploy.Snapshot) error {
+	// Check whether the input URN corresponds to an existing resource
+	existingResources := edit.LocateResource(snap, urn)
+	if len(existingResources) != 1 {
+		return errors.New("The input URN does not correspond to an existing resource")
+	}
+
+	inputResource := existingResources[0]
+	oldUrn := inputResource.URN
+	// update the URN with only the name part changed
+	newUrn := oldUrn.Rename(newResourceName)
+	// Check whether the new URN _does not_ correspond to an existing resource
+	candidateResources := edit.LocateResource(snap, newUrn)
+	if len(candidateResources) > 0 {
+		return errors.New("The chosen new name for the state corresponds to an already existing resource")
+	}
+
+	// Update the URN of the input resource
+	inputResource.URN = newUrn
+	// Update the dependants of the input resource
+	for _, existingResource := range snap.Resources {
+		// update resources other than the input resource
+		if existingResource.URN != inputResource.URN {
+			// Update dependencies
+			existingResource.Dependencies = updateDependencies(existingResource.Dependencies, oldUrn, newUrn)
+			// Update property dependencies
+			for property, dependencies := range existingResource.PropertyDependencies {
+				existingResource.PropertyDependencies[property] = updateDependencies(dependencies, oldUrn, newUrn)
+			}
+		}
+	}
+
+	return nil
+}
+
 func newStateRenameCommand() *cobra.Command {
 	var stack string
 	var yes bool
@@ -72,38 +108,7 @@ pulumi state rename 'urn:pulumi:stage::demo::eks:index:Cluster$pulumi:providers:
 			}
 
 			res := runTotalStateEdit(ctx, stack, showPrompt, func(opts display.Options, snap *deploy.Snapshot) error {
-				// Check whether the input URN corresponds to an existing resource
-				existingResources := edit.LocateResource(snap, urn)
-				if len(existingResources) != 1 {
-					return errors.New("The input URN does not correspond to an existing resource")
-				}
-
-				inputResource := existingResources[0]
-				oldUrn := inputResource.URN
-				// update the URN with only the name part changed
-				newUrn := oldUrn.Rename(newResourceName)
-				// Check whether the new URN _does not_ correspond to an existing resource
-				candidateResources := edit.LocateResource(snap, newUrn)
-				if len(candidateResources) > 0 {
-					return errors.New("The chosen new name for the state corresponds to an already existing resource")
-				}
-
-				// Update the URN of the input resource
-				inputResource.URN = newUrn
-				// Update the dependants of the input resource
-				for _, existingResource := range snap.Resources {
-					// update resources other than the input resource
-					if existingResource.URN != inputResource.URN {
-						// Update dependencies
-						existingResource.Dependencies = updateDependencies(existingResource.Dependencies, oldUrn, newUrn)
-						// Update property dependencies
-						for property, dependencies := range existingResource.PropertyDependencies {
-							existingResource.PropertyDependencies[property] = updateDependencies(dependencies, oldUrn, newUrn)
-						}
-					}
-				}
-
-				return nil
+				return stateRenameOperation(urn, newResourceName, opts, snap)
 			})
 
 			if res != nil {
