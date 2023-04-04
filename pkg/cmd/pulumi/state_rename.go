@@ -20,6 +20,7 @@ import (
 
 	"github.com/pulumi/pulumi/pkg/v3/backend/display"
 	"github.com/pulumi/pulumi/pkg/v3/resource/deploy"
+	"github.com/pulumi/pulumi/pkg/v3/resource/deploy/providers"
 	"github.com/pulumi/pulumi/pkg/v3/resource/edit"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/util/cmdutil"
@@ -72,6 +73,39 @@ func stateRenameOperation(urn resource.URN, newResourceName string, opts display
 				existingResource.PropertyDependencies[property] = updateDependencies(dependencies, oldUrn, newUrn)
 			}
 		}
+	}
+
+	updateProvider := func(newRef providers.Reference) error {
+		// Loop through all resources and rename references to the provider.
+		for _, curResource := range snap.Resources {
+
+			if curResource.Provider == "" {
+				// Skip resources that don't use a provider.
+				continue
+			}
+			curResourceProviderRef, err := providers.ParseReference(curResource.Provider)
+			if err != nil {
+				return err
+			}
+
+			// Skip resources that don't use the renamed provider.
+			if curResourceProviderRef.URN() != oldUrn {
+				continue
+			}
+
+			// Update the provider.
+			curResource.Provider = newRef.String()
+		}
+		return nil
+	}
+
+	// If the renamed resource is a Provider, fix all resources referring to the old name.
+	if providers.IsProviderType(inputResource.Type) {
+		newRef, err := providers.NewReference(newUrn, inputResource.ID)
+		if err != nil {
+			return err
+		}
+		return updateProvider(newRef)
 	}
 
 	return nil
