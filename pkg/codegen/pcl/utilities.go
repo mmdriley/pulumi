@@ -236,3 +236,13 @@ func GenerateMultiArguments(
 		}
 	}
 }
+
+func SortedKeys[V any](properties map[string]V) []string {
+	propertyNames := make([]string, 0)
+	for propertyName := range properties {
+		propertyNames = append(propertyNames, propertyName)
+	}
+
+	sort.Strings(propertyNames)
+	return propertyNames
+}
